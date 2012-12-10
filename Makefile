@@ -14,8 +14,10 @@ CC?=gcc
 
 # Debug flavour
 PREFIX?=..
-LIBOWFAT_HEADERS=$(PREFIX)/libowfat
-LIBOWFAT_LIBRARY=$(PREFIX)/libowfat
+
+# libowfat is part of my git repository.
+LIBOWFAT_HEADERS=libowfat
+LIBOWFAT_LIBRARY=libowfat
 
 BINDIR?=$(PREFIX)/bin
 
@@ -24,7 +26,8 @@ BINDIR?=$(PREFIX)/bin
 #FEATURES+=-DWANT_ACCESSLIST_BLACK
 #FEATURES+=-DWANT_ACCESSLIST_WHITE
 
-#FEATURES+=-DWANT_SYNC_LIVE
+FEATURES+=-DWANT_SYNC_LIVE
+FEATURES+=-DSYNC_LIVE_UNICAST
 #FEATURES+=-DWANT_IP_FROM_QUERY_STRING
 #FEATURES+=-DWANT_COMPRESSION_GZIP
 #FEATURES+=-DWANT_COMPRESSION_GZIP_ALWAYS
@@ -59,7 +62,11 @@ OBJECTS_proxy_debug = $(SOURCES_proxy:%.c=%.debug.o)
 
 .SUFFIXES: .debug.o .o .c
 
-all: $(BINARY) $(BINARY).debug
+all: owfat $(BINARY) $(BINARY).debug
+
+.PHONY: owfat
+owfat: libowfat/
+	make -C libowfat
 
 CFLAGS_production = $(CFLAGS) $(OPTS_production) $(FEATURES)
 CFLAGS_debug = $(CFLAGS) $(OPTS_debug) $(FEATURES)
@@ -82,6 +89,7 @@ proxy.debug: $(OBJECTS_proxy_debug) $(HEADERS)
 
 clean:
 	rm -rf opentracker opentracker.debug *.o *~
+	make -C libowfat clean
 
 install:
 	install -m 755 opentracker $(BINDIR)

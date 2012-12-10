@@ -448,12 +448,23 @@ int parse_configfile( char * config_filename ) {
       set_config_option( &g_redirecturl, p+21 );
 #ifdef WANT_SYNC_LIVE
     } else if(!byte_diff(p, 24, "livesync.cluster.node_ip" ) && isspace(p[24])) {
+#ifdef SYNC_LIVE_UNICAST
+      uint16_t tmpport = LIVESYNC_PORT;
+      if( !scan_ip6_port( p+25, tmpip, &tmpport )) goto parse_error;
+      livesync_add_node( tmpip, tmpport);
+      accesslist_blessip( tmpip, OT_PERMISSION_MAY_LIVESYNC );
+#else 
       if( !scan_ip6( p+25, tmpip )) goto parse_error;
       accesslist_blessip( tmpip, OT_PERMISSION_MAY_LIVESYNC );
+#endif /* SYNC_LIVE_UNICAST */
     } else if(!byte_diff(p, 23, "livesync.cluster.listen" ) && isspace(p[23])) {
       uint16_t tmpport = LIVESYNC_PORT;
       if( !scan_ip6_port( p+24, tmpip, &tmpport )) goto parse_error;
+#ifdef SYNC_LIVE_UNICAST
+      livesync_bind_ucast( tmpip, tmpport );
+#else
       livesync_bind_mcast( tmpip, tmpport );
+#endif /* SYNC_LIVE_UNICAST */
 #endif
     } else
       fprintf( stderr, "Unhandled line in config file: %s\n", inbuf );
@@ -594,7 +605,11 @@ int main( int argc, char **argv ) {
 #ifdef WANT_SYNC_LIVE
       case 's':
         if( !scan_ushort( optarg, &tmpport)) { usage( argv[0] ); exit( 1 ); }
+#ifdef SYNC_LIVE_UNICAST
+        livesync_bind_ucast( serverip, tmpport); break;
+#else
         livesync_bind_mcast( serverip, tmpport); break;
+#endif /* SYNC_LIVE_UNICAST */
 #endif
       case 'd': set_config_option( &g_serverdir, optarg ); break;
       case 'u': set_config_option( &g_serveruser, optarg ); break;

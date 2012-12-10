@@ -26,7 +26,13 @@
 
 #ifdef WANT_SYNC_LIVE
 
+#ifdef SYNC_LIVE_UNICAST
+static ot_ip6         g_nodeip[OT_ADMINIP_MAX];
+static uint16_t       g_nodeport[OT_ADMINIP_MAX];
+static unsigned int   g_node_count = 0;
+#else
 char groupip_1[4] = { 224,0,23,5 };
+#endif /* SYNC_LIVE_UNICAST */
 
 #define LIVESYNC_INCOMING_BUFFSIZE          (256*256)
 
@@ -75,6 +81,44 @@ void livesync_deinit() {
   pthread_cancel( thread_id );
 }
 
+#ifdef SYNC_LIVE_UNICAST
+
+int livesync_add_node( ot_ip6 ip, uint16_t port ) {
+  if( g_node_count >= OT_ADMINIP_MAX )
+    return -1;
+
+  memcpy(g_nodeip + g_node_count, ip, sizeof(ot_ip6));
+  g_nodeport[g_node_count++] = port;
+  return 0;
+}
+
+/* Create unicast socket for listening and create sending socket */
+void livesync_bind_ucast( char *ip, uint16_t port ) {
+  char tmpip[4] = {0,0,0,0};
+  char *v4ip;
+
+  if( !ip6_isv4mapped(ip))
+    exerr("v6 ucast support not yet available.");
+  v4ip = ip+12;
+
+  if( g_socket_in != -1 )
+    exerr("Error: Livesync listen ip specified twice.");
+
+  if( ( g_socket_in = socket_udp4( )) < 0)
+    exerr("Error: Cant create live sync incoming socket." );
+  ndelay_off(g_socket_in);
+
+  if( socket_bind4_reuse( g_socket_in, tmpip, port ) == -1 )
+    exerr("Error: Cant bind live sync incoming socket." );
+
+  if( ( g_socket_out = socket_udp4()) < 0)
+    exerr("Error: Cant create live sync outgoing socket." );
+  if( socket_bind4_reuse( g_socket_out, v4ip, port ) == -1 )
+    exerr("Error: Cant bind live sync outgoing socket." );
+}
+
+#else
+
 void livesync_bind_mcast( ot_ip6 ip, uint16_t port) {
   char tmpip[4] = {0,0,0,0};
   char *v4ip;
@@ -105,8 +149,17 @@ void livesync_bind_mcast( ot_ip6 ip, uint16_t port) {
   socket_mcloop4(g_socket_out, 0);
 }
 
+#endif /* SYNC_LIVE_UNICAST */
+
 static void livesync_issue_peersync( ) {
+#ifdef SYNC_LIVE_UNICAST
+  unsigned int i;
+  for( i=0; i<g_node_count; ++i )
+      socket_send4(g_socket_out, g_outbuf, g_outbuf_data, (char *)g_nodeip[i] + 12, g_nodeport[i]);
+#else
   socket_send4(g_socket_out, g_outbuf, g_outbuf_data, groupip_1, LIVESYNC_PORT);
+#endif /* SYNC_LIVE_UNICAST */
+
   g_outbuf_data = sizeof( g_tracker_id ) + sizeof( uint32_t );
   g_next_packet_time = g_now_seconds + LIVESYNC_MAXDELAY;
 }

@@ -44,8 +44,16 @@
 void livesync_init();
 void livesync_deinit();
 
+#ifdef SYNC_LIVE_UNICAST
+
+int livesync_add_node( ot_ip6 ip, uint16_t port );
+
+/* Create unicast socket for listening and create sending socket */
+void livesync_bind_ucast( char *ip, uint16_t port );
+#else
 /* Join multicast group for listening and create sending socket */
 void livesync_bind_mcast( char *ip, uint16_t port );
+#endif /* SYNC_LIVE_UNICAST */
 
 /* Inform live sync about whats going on. */
 void livesync_tell( struct ot_workstruct *ws );
