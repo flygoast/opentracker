@@ -122,7 +122,7 @@ void livesync_bind_ucast( char *ip, uint16_t port ) {
     exerr("Error: Cant create live sync socket." );
   ndelay_off(g_socket);
 
-  if( socket_bind4_reuse( g_socket, tmpip, port ) == -1 )
+  if( socket_bind4_reuse( g_socket, v4ip, port ) == -1 )
     exerr("Error: Cant bind live sync socket." );
 }
 
