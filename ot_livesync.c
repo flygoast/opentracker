@@ -46,11 +46,17 @@ enum { OT_SYNC_PEER };
 /* Forward declaration */
 static void * livesync_worker( void * args );
 
+#ifdef SYNC_LIVE_UNICAST
+/* For outgoing and incoming packets */
+static int64    g_socket = -1;
+
+#else
 /* For outgoing packets */
 static int64    g_socket_in = -1;
 
 /* For incoming packets */
 static int64    g_socket_out = -1;
+#endif /* SYNC_LIVE_UNICAST */
 
 char            g_outbuf[LIVESYNC_OUTGOING_BUFFSIZE_PEERS];
 static size_t   g_outbuf_data;
@@ -59,7 +65,11 @@ static ot_time  g_next_packet_time;
 static pthread_t thread_id;
 void livesync_init( ) {
   
+#ifdef SYNC_LIVE_UNICAST
+  if( g_socket == -1 ) 
+#else
   if( g_socket_in == -1 )
+#endif /* SYNC_LIVE_UNICAST */
     exerr( "No socket address for live sync specified." );
 
   /* Prepare outgoing peers buffer */
@@ -73,10 +83,15 @@ void livesync_init( ) {
 }
 
 void livesync_deinit() {
+#ifdef SYNC_LIVE_UNICAST
+  if( g_socket != -1 )
+    close( g_socket );
+#else
   if( g_socket_in != -1 )
     close( g_socket_in );
   if( g_socket_out != -1 )
     close( g_socket_out );
+#endif /* SYNC_LIVE_UNICAST */
 
   pthread_cancel( thread_id );
 }
@@ -94,27 +109,21 @@ int livesync_add_node( ot_ip6 ip, uint16_t port ) {
 
 /* Create unicast socket for listening and create sending socket */
 void livesync_bind_ucast( char *ip, uint16_t port ) {
-  char tmpip[4] = {0,0,0,0};
   char *v4ip;
 
   if( !ip6_isv4mapped(ip))
     exerr("v6 ucast support not yet available.");
   v4ip = ip+12;
 
-  if( g_socket_in != -1 )
+  if( g_socket != -1 )
     exerr("Error: Livesync listen ip specified twice.");
 
-  if( ( g_socket_in = socket_udp4( )) < 0)
-    exerr("Error: Cant create live sync incoming socket." );
-  ndelay_off(g_socket_in);
+  if( ( g_socket = socket_udp4( )) < 0)
+    exerr("Error: Cant create live sync socket." );
+  ndelay_off(g_socket);
 
-  if( socket_bind4_reuse( g_socket_in, tmpip, port ) == -1 )
-    exerr("Error: Cant bind live sync incoming socket." );
-
-  if( ( g_socket_out = socket_udp4()) < 0)
-    exerr("Error: Cant create live sync outgoing socket." );
-  if( socket_bind4_reuse( g_socket_out, v4ip, port ) == -1 )
-    exerr("Error: Cant bind live sync outgoing socket." );
+  if( socket_bind4_reuse( g_socket, tmpip, port ) == -1 )
+    exerr("Error: Cant bind live sync socket." );
 }
 
 #else
@@ -155,7 +164,7 @@ static void livesync_issue_peersync( ) {
 #ifdef SYNC_LIVE_UNICAST
   unsigned int i;
   for( i=0; i<g_node_count; ++i )
-      socket_send4(g_socket_out, g_outbuf, g_outbuf_data, (char *)g_nodeip[i] + 12, g_nodeport[i]);
+    socket_send4(g_socket, g_outbuf, g_outbuf_data, (char *)g_nodeip[i] + 12, g_nodeport[i]);
 #else
   socket_send4(g_socket_out, g_outbuf, g_outbuf_data, groupip_1, LIVESYNC_PORT);
 #endif /* SYNC_LIVE_UNICAST */
@@ -223,7 +232,11 @@ static void * livesync_worker( void * args ) {
   memcpy( in_ip, V4mappedprefix, sizeof( V4mappedprefix ) );
 
   while( 1 ) {
+#ifdef SYNC_LIVE_UNICAST
+    ws.request_size = socket_recv4(g_socket, (char*)ws.inbuf, LIVESYNC_INCOMING_BUFFSIZE, 12+(char*)in_ip, &in_port);
+#else
     ws.request_size = socket_recv4(g_socket_in, (char*)ws.inbuf, LIVESYNC_INCOMING_BUFFSIZE, 12+(char*)in_ip, &in_port);
+#endif /* SYNC_LIVE_UNICAST */
 
     /* Expect at least tracker id and packet type */
     if( ws.request_size <= (ssize_t)(sizeof( g_tracker_id ) + sizeof( uint32_t )) )
