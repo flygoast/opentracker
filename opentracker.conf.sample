@@ -104,3 +104,29 @@
 #      redirect to another location (shell option -r).
 #
 # tracker.redirect_url https://your.tracker.local/
+
+# VII) Persistence of memory data, save the torrents and peers on disk.
+#       Spicify the persistence mode. 
+#           "null" for turning persistence off. 
+#           "dump" for dumping the memory data structure.
+#
+# persist.mode      dump
+#
+#       Tell opentracker which persist file to used. When startup, opentracker
+#       will load data from this file.
+#
+# persist.file      /path/to/persist.odb
+#
+#   Will save the memory data if both the given number of seconds and the given
+#   number of change operations occurred.
+#
+# persist.save      <seconds> <changes>
+#
+#   In the example below the behaviour will be to save:
+#   after 900 sec (15 min) if at least 1 change operations occurred
+#   after 300 sec (5 min) if at least 10 change operations occurred
+#   after 60 sec if at least 10000 change operations occurred
+#
+# persist.save      900 1
+# persist.save      300 10
+# persist.save      60 10000

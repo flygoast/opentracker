@@ -36,6 +36,7 @@
 #include "ot_accesslist.h"
 #include "ot_stats.h"
 #include "ot_livesync.h"
+#include "ot_persist.h"
 
 /* Globals */
 time_t       g_now_seconds;
@@ -373,6 +374,21 @@ static int scan_ip6_port( const char *src, ot_ip6 ip, uint16 *port ) {
   return off+s-src;
 }
 
+static int scan_save_params( const char *src, int *seconds, int *changes) {
+  const char *s = src;
+  int off = 0;
+  while( isspace(*s) ) ++s;
+
+  if( !(off = scan_int( s, seconds ) ) )
+    return 0;
+  s += off;
+  while( isspace(*s) ) ++s;
+  if( !(off = scan_int( s, changes ) ) )
+    return 0;
+  s += off;
+  return off+s-src;
+}
+
 int parse_configfile( char * config_filename ) {
   FILE *  accesslist_filehandle;
   char    inbuf[512];
@@ -466,6 +482,17 @@ int parse_configfile( char * config_filename ) {
       livesync_bind_mcast( tmpip, tmpport );
 #endif /* SYNC_LIVE_UNICAST */
 #endif
+#ifdef WANT_PERSISTENCE
+    } else if (!byte_diff(p, 12, "persist.mode" ) && isspace(p[12])) {
+      if (persist_set_mode(p+13) < 0)  goto parse_error;
+    } else if (!byte_diff(p, 12, "persist.file" ) && isspace(p[12])) {
+      set_config_option( &g_persistfile, p+13 );
+    } else if (!byte_diff(p, 12, "persist.save" ) && isspace(p[12])) {
+      int seconds, changes;
+      if( !scan_save_params( p+13, &seconds, &changes )) goto parse_error;
+      if (seconds < 1 || changes < 0) goto parse_error;
+      persist_append_save_param(seconds, changes);
+#endif /* WANT_PERSISTENCE */
     } else
       fprintf( stderr, "Unhandled line in config file: %s\n", inbuf );
     continue;
@@ -663,6 +690,11 @@ int main( int argc, char **argv ) {
   defaul_signal_handlers( );
   /* Init all sub systems. This call may fail with an exit() */
   trackerlogic_init( );
+
+#ifdef WANT_PERSISTENCE
+  if( g_persistfile )
+    persist_load_file( );
+#endif /* WANT_PERSISTENCE */
 
   if( statefile )
     load_state( statefile );

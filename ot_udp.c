@@ -194,7 +194,7 @@ void udp_init( int64 sock, unsigned int worker_count ) {
   if( !g_rijndael_round_key[0] )
     udp_generate_rijndael_round_key();
 #ifdef _DEBUG
-  fprintf( stderr, " installing %d workers on udp socket %ld", worker_count, (unsigned long)sock );
+  fprintf( stderr, "installing %d workers on udp socket %ld\n", worker_count, (unsigned long)sock );
 #endif
   while( worker_count-- )
     pthread_create( &thread_id, NULL, udp_worker, (void *)sock );

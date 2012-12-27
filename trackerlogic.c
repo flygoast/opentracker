@@ -27,6 +27,7 @@
 #include "ot_accesslist.h"
 #include "ot_fullscrape.h"
 #include "ot_livesync.h"
+#include "ot_persist.h"
 
 /* Forward declaration */
 size_t return_peers_for_torrent( ot_torrent *torrent, size_t amount, char *reply, PROTO_FLAG proto );
@@ -171,6 +172,11 @@ size_t add_peer_to_torrent_and_return_peers( PROTO_FLAG proto, struct ot_workstr
   }
 
   memcpy( peer_dest, &ws->peer, sizeof(ot_peer) );
+
+#ifdef WANT_PERSISTENCE
+  persist_change(ws);
+#endif /* WANT_PERSISTENCE */
+
 #ifdef WANT_SYNC
   if( proto == FLAG_MCA ) {
     mutex_bucket_unlock_by_hash( *ws->hash, delta_torrentcount );
@@ -384,6 +390,10 @@ size_t remove_peer_from_torrent( PROTO_FLAG proto, struct ot_workstruct *ws ) {
     ws->reply_size = 20;
   }
 
+#ifdef WANT_PERSISTENCE
+  persist_change(ws);
+#endif /* WANT_PERSISTENCE */
+
   mutex_bucket_unlock_by_hash( *ws->hash, 0 );
   return ws->reply_size;
 }
@@ -424,6 +434,9 @@ void trackerlogic_init( ) {
   accesslist_init( );
   livesync_init( );
   stats_init( );
+#ifdef WANTPERSISTENCE
+  persist_init( );
+#endif /* WANTPERSISTENCE */
 }
 
 void trackerlogic_deinit( void ) {
@@ -445,6 +458,9 @@ void trackerlogic_deinit( void ) {
   }
 
   /* Deinitialise background worker threads */
+#ifdef WANTPERSISTENCE
+  persist_deinit( );
+#endif /* WANTPERSISTENCE */
   stats_deinit( );
   livesync_deinit( );
   accesslist_deinit( );
