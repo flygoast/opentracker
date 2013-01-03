@@ -42,6 +42,8 @@
 #define LOG_ERR( ... )
 #endif /* NO_PERSIST_LOGGING */
 
+#define PERSIST_SLEEP_INTERVAL      1000000     /* macroseconds */
+
 /* Just for file corruption checking  */
 #define OT_DUMP_TORRENT     0xfe
 #define OT_DUMP_EOF         0xff
@@ -409,7 +411,7 @@ static void * persist_worker( void * args ) {
         }
       }
       if( !g_opentracker_running ) return NULL;
-      sleep(1);
+      usleep(PERSIST_SLEEP_INTERVAL);
     } else {
       return NULL;
     }
