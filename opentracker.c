@@ -113,7 +113,7 @@ static void usage( char *name ) {
   "\n", name );
 }
 
-#define HELPLINE(opt,desc) fprintf(stderr, "\t%-10s%s\n",opt,desc)
+#define HELPLINE(opt,desc) fprintf(stderr, "\t%-15s%s\n",opt,desc)
 static void help( char *name ) {
   usage( name );
 
