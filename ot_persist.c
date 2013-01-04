@@ -196,7 +196,7 @@ int persist_load_file() {
     return 0;
   }
 
-  if (fread(buf, OT_DUMP_IDENTI_LEN, 1, fp) == 0) {
+  if (fread(buf, OT_DUMP_IDENTI_VERSION_LEN, 1, fp) == 0) {
     LOG_ERR("%s\n", strerror(errno));
     goto rerr;
   }
