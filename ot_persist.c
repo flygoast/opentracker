@@ -169,9 +169,9 @@ static int persist_load_torrent(FILE *fp) {
    *
    */
   if (fread(&peer_list.base, sizeof(ot_time), 1, fp) != 1) goto rerr;
-  if (fread(&peer_list.seed_count, sizeof(ot_time), 1, fp) != 1) goto rerr;
-  if (fread(&peer_list.peer_count, sizeof(ot_time), 1, fp) != 1) goto rerr;
-  if (fread(&peer_list.down_count, sizeof(ot_time), 1, fp) != 1) goto rerr;
+  if (fread(&peer_list.seed_count, sizeof(size_t), 1, fp) != 1) goto rerr;
+  if (fread(&peer_list.peer_count, sizeof(size_t), 1, fp) != 1) goto rerr;
+  if (fread(&peer_list.down_count, sizeof(size_t), 1, fp) != 1) goto rerr;
   if (persist_load_peers(fp, &hash, &peer_list) < 0) goto rerr;
 
   return 0;
