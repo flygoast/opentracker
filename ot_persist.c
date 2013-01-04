@@ -36,7 +36,7 @@
 #include "ot_accesslist.h"
 #include "ot_persist.h"
 
-#ifdef PERSIST_LOGGING
+#ifdef _DEBUG 
 #define LOG_ERR( ... ) fprintf( stderr, __VA_ARGS__ )
 #else
 #define LOG_ERR( ... )
