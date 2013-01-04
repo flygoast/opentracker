@@ -434,9 +434,9 @@ void trackerlogic_init( ) {
   accesslist_init( );
   livesync_init( );
   stats_init( );
-#ifdef WANTPERSISTENCE
+#ifdef WANT_PERSISTENCE
   persist_init( );
-#endif /* WANTPERSISTENCE */
+#endif /* WANT_PERSISTENCE */
 }
 
 void trackerlogic_deinit( void ) {
@@ -458,9 +458,9 @@ void trackerlogic_deinit( void ) {
   }
 
   /* Deinitialise background worker threads */
-#ifdef WANTPERSISTENCE
+#ifdef WANT_PERSISTENCE
   persist_deinit( );
-#endif /* WANTPERSISTENCE */
+#endif /* WANT_PERSISTENCE */
   stats_deinit( );
   livesync_deinit( );
   accesslist_deinit( );
