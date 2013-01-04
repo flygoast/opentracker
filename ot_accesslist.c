@@ -289,10 +289,10 @@ int accesslist_blessip( ot_ip6 ip, ot_permissions permissions ) {
     int off = snprintf( _debug, sizeof(_debug), "Blessing ip address " );
     off += fmt_ip6c(_debug+off, ip );
 
-    if( permissions & OT_PERMISSION_MAY_STAT       ) off += snprintf( _debug+off, 512-off, " may_fetch_stats" );
-    if( permissions & OT_PERMISSION_MAY_LIVESYNC   ) off += snprintf( _debug+off, 512-off, " may_sync_live" );
-    if( permissions & OT_PERMISSION_MAY_FULLSCRAPE ) off += snprintf( _debug+off, 512-off, " may_fetch_fullscrapes" );
-    if( permissions & OT_PERMISSION_MAY_PROXY      ) off += snprintf( _debug+off, 512-off, " may_proxy" );
+    if( permissions & OT_PERMISSION_MAY_STAT       ) off += snprintf( _debug+off, 512-off, " may_fetch_stats\n" );
+    if( permissions & OT_PERMISSION_MAY_LIVESYNC   ) off += snprintf( _debug+off, 512-off, " may_sync_live\n" );
+    if( permissions & OT_PERMISSION_MAY_FULLSCRAPE ) off += snprintf( _debug+off, 512-off, " may_fetch_fullscrapes\n" );
+    if( permissions & OT_PERMISSION_MAY_PROXY      ) off += snprintf( _debug+off, 512-off, " may_proxy\n" );
     if( !permissions ) off += snprintf( _debug+off, sizeof(_debug)-off, " nothing\n" );
     _debug[off++] = '.';
     write( 2, _debug, off );
