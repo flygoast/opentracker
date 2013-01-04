@@ -108,12 +108,11 @@ static int persist_add_peer(ot_hash *hash, ot_peerlist *peer_list, ot_peer *peer
     return 0;
   }
 
-  /* If we hadn't had a match create peer there */
+  /* If we hadn't had a match, create peer there */
   if( !exactmatch ) {
     torrent->peer_list->peer_count++;
-    if( OT_PEERFLAG(peer) & PEER_FLAG_COMPLETED ) {
+    if( OT_PEERFLAG(peer) & PEER_FLAG_COMPLETED )
       torrent->peer_list->down_count++;
-    }
     if( OT_PEERFLAG(peer) & PEER_FLAG_SEEDING )
       torrent->peer_list->seed_count++;
   } else {
@@ -138,9 +137,7 @@ static int persist_load_peers(FILE *fp, ot_hash *hash, ot_peerlist *peer_list) {
 #endif /* _DEBUG */
 
   if (fread(&count, sizeof(unsigned int), 1, fp) == 0) goto rerr;
-#ifdef _DEBUG
   LOG_ERR("Peer count: %d\n", count);
-#endif /* _DEBUG */
   if (count == 0) return 0;
 
   for (i = 0; i < count; ++i) {
@@ -149,8 +146,8 @@ static int persist_load_peers(FILE *fp, ot_hash *hash, ot_peerlist *peer_list) {
     n = *(unsigned int *)&peer; 
     myaddr.s_addr = htonl(n);
     if (!inet_ntop(AF_INET, &myaddr, str, sizeof(str))) {
-        LOG_ERR("inet_ntop failed");
-        exit(123);
+      LOG_ERR("inet_ntop failed");
+      assert(0);
     }
     LOG_ERR("%s:%d\n", str, *(unsigned short *)((uint8_t*)(&peer) + (OT_IP_SIZE)));
 #endif /* _DEBUG */
@@ -168,36 +165,36 @@ rerr:
 
 #ifdef _DEBUG
 static int urlencode(const char *src, int len, char *ret, int size) {
-    int i;
-    int j = 0;
-    char c;
+  int i;
+  int j = 0;
+  char c;
 
-    assert(src && ret && len && size);
+  assert(src && ret && len && size);
 
-    for (i = 0; i < len && j < size; i++) {
-        c = src[i];
-        if ((c >= 'A') && (c <= 'Z')) {
-            ret[j++] = c;
-        } else if ((c >='a') && (c <= 'z')) {
-            ret[j++] = c;
-        } else if ((c >='0') && (c <= '9')) {
-            ret[j++] = c;
-        } else if (c == ' ') {
-            ret[j++] = '+';
-        } else {
-            if (j + 3 < size) {
-                sprintf(ret + j, "%%%02X", (unsigned char)c);
-                j += 3;
-            } else {
-                return 0;
-            }
-        }
+  for (i = 0; i < len && j < size; i++) {
+    c = src[i];
+    if ((c >= 'A') && (c <= 'Z')) {
+      ret[j++] = c;
+    } else if ((c >='a') && (c <= 'z')) {
+      ret[j++] = c;
+    } else if ((c >='0') && (c <= '9')) {
+      ret[j++] = c;
+    } else if (c == ' ') {
+      ret[j++] = '+';
+    } else {
+      if (j + 3 < size) {
+        sprintf(ret + j, "%%%02X", (unsigned char)c);
+        j += 3;
+      } else {
+        return 0;
+      }
     }
-    ret[j] = '\0';
+  }
 
-    return j;
+  ret[j] = '\0';
+
+  return j;
 }
-
 #endif /* _DEBUG */
 
 static int persist_load_torrent(FILE *fp) {
@@ -212,8 +209,8 @@ static int persist_load_torrent(FILE *fp) {
 
 #ifdef _DEBUG
   if (urlencode((const char *)&hash, sizeof(ot_hash), log_buf, 512) <= 0) {
-      LOG_ERR("urlencode failed\n");
-      exit(123);
+    LOG_ERR("urlencode failed\n");
+    assert(0);
   }
   LOG_ERR("%s\n", log_buf);
 #endif /* _DEBUG */
