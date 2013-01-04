@@ -131,12 +131,29 @@ static int persist_load_peers(FILE *fp, ot_hash *hash, ot_peerlist *peer_list) {
   unsigned int count;
   unsigned int i;
   ot_peer  peer;
+#ifdef _DEBUG
+  struct in_addr myaddr;
+  unsigned int n;
+  char str[40];
+#endif /* _DEBUG */
 
   if (fread(&count, sizeof(unsigned int), 1, fp) == 0) goto rerr;
+#ifdef _DEBUG
+  LOG_ERR("Peer count: %d\n", count);
+#endif /* _DEBUG */
   if (count == 0) return 0;
 
   for (i = 0; i < count; ++i) {
     if (fread(&peer, sizeof(ot_peer), 1, fp) != 1) goto rerr;
+#ifdef _DEBUG
+    n = *(unsigned int *)&peer; 
+    myaddr.s_addr = htonl(n);
+    if (!inet_ntop(AF_INET, &myaddr, str, sizeof(str))) {
+        LOG_ERR("inet_ntop failed");
+        exit(123);
+    }
+    LOG_ERR("%s:%d\n", str, *(unsigned short *)((uint8_t*)(&peer) + (OT_IP_SIZE)));
+#endif /* _DEBUG */
     if (persist_add_peer(hash, peer_list, &peer) < 0) {
       LOG_ERR("persist_add_peer failed\n");
       return -1;
@@ -149,12 +166,57 @@ rerr:
   return -1;
 }
 
+#ifdef _DEBUG
+static int urlencode(const char *src, int len, char *ret, int size) {
+    int i;
+    int j = 0;
+    char c;
+
+    assert(src && ret && len && size);
+
+    for (i = 0; i < len && j < size; i++) {
+        c = src[i];
+        if ((c >= 'A') && (c <= 'Z')) {
+            ret[j++] = c;
+        } else if ((c >='a') && (c <= 'z')) {
+            ret[j++] = c;
+        } else if ((c >='0') && (c <= '9')) {
+            ret[j++] = c;
+        } else if (c == ' ') {
+            ret[j++] = '+';
+        } else {
+            if (j + 3 < size) {
+                sprintf(ret + j, "%%%02X", (unsigned char)c);
+                j += 3;
+            } else {
+                return 0;
+            }
+        }
+    }
+    ret[j] = '\0';
+
+    return j;
+}
+
+#endif /* _DEBUG */
+
 static int persist_load_torrent(FILE *fp) {
   ot_hash       hash;
   ot_peerlist   peer_list;
+#ifdef _DEBUG
+  char          log_buf[512];
+#endif /* _DEBUG */
 
   /* load torrent hash */
   if (fread(&hash, sizeof(ot_hash), 1, fp) != 1) goto rerr;
+
+#ifdef _DEBUG
+  if (urlencode((const char *)&hash, sizeof(ot_hash), log_buf, 512) <= 0) {
+      LOG_ERR("urlencode failed\n");
+      exit(123);
+  }
+  LOG_ERR("%s\n", log_buf);
+#endif /* _DEBUG */
 
   /*
    * load peer_list data:
@@ -185,6 +247,9 @@ int persist_load_file() {
   FILE     *fp;
   uint8_t   buf[1024];
   int       version;
+#ifdef _DEBUG
+  int       torrent_cnt = 0;
+#endif /* _DEBUG */
 
   if (!g_persistfile) {
     g_persistfile = strdup("opentracker.odb");
@@ -223,9 +288,12 @@ int persist_load_file() {
       break;
     }
     if (persist_load_torrent(fp) < 0) goto rerr;
+#ifdef _DEBUG
+    ++torrent_cnt;
+#endif /* _DEBUG */
   }
 
-  LOG_ERR("Load ODB file success\n");
+  LOG_ERR("Load ODB file success: torrent count: %d\n", torrent_cnt);
   fclose(fp);
   return 0;
 
