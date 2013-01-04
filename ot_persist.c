@@ -136,7 +136,7 @@ static int persist_load_peers(FILE *fp, ot_hash *hash, ot_peerlist *peer_list) {
   if (count == 0) return 0;
 
   for (i = 0; i < count; ++i) {
-    if (fread(&peer, sizeof(ot_peer), 1, fp) != sizeof(ot_peer)) goto rerr;
+    if (fread(&peer, sizeof(ot_peer), 1, fp) != 1) goto rerr;
     if (persist_add_peer(hash, peer_list, &peer) < 0) {
       LOG_ERR("persist_add_peer failed\n");
       return -1;
@@ -154,7 +154,7 @@ static int persist_load_torrent(FILE *fp) {
   ot_peerlist   peer_list;
 
   /* load torrent hash */
-  if (fread(&hash, sizeof(ot_hash), 1, fp) != sizeof(ot_hash)) goto rerr;
+  if (fread(&hash, sizeof(ot_hash), 1, fp) != 1) goto rerr;
 
   /*
    * load peer_list data:
@@ -168,10 +168,10 @@ static int persist_load_torrent(FILE *fp) {
    * }
    *
    */
-  if (fread(&peer_list.base, sizeof(ot_time), 1, fp) != sizeof(ot_time)) goto rerr;
-  if (fread(&peer_list.seed_count, sizeof(ot_time), 1, fp) != sizeof(ot_time)) goto rerr;
-  if (fread(&peer_list.peer_count, sizeof(ot_time), 1, fp) != sizeof(ot_time)) goto rerr;
-  if (fread(&peer_list.down_count, sizeof(ot_time), 1, fp) != sizeof(ot_time)) goto rerr;
+  if (fread(&peer_list.base, sizeof(ot_time), 1, fp) != 1) goto rerr;
+  if (fread(&peer_list.seed_count, sizeof(ot_time), 1, fp) != 1) goto rerr;
+  if (fread(&peer_list.peer_count, sizeof(ot_time), 1, fp) != 1) goto rerr;
+  if (fread(&peer_list.down_count, sizeof(ot_time), 1, fp) != 1) goto rerr;
   if (persist_load_peers(fp, &hash, &peer_list) < 0) goto rerr;
 
   return 0;
