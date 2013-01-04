@@ -336,6 +336,8 @@ static int persist_dump_make() {
 
   snprintf(tmpfile, 256, "temp-%u.odb", (unsigned int)g_now_seconds);
 
+  LOG_ERR("Start write odb file:%s\n", tmpfile);
+
   fp = fopen(tmpfile, "w");
   if (!fp) return -1;
 
