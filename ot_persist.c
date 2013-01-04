@@ -335,7 +335,7 @@ static int persist_dump_make() {
   FILE *fp;
   char tmpfile[256];
 
-  snprintf(tmpfile, 256, "temp-%u.otdb", (unsigned int)g_now_seconds);
+  snprintf(tmpfile, 256, "temp-%u.odb", (unsigned int)g_now_seconds);
 
   fp = fopen(tmpfile, "w");
   if (!fp) return -1;
