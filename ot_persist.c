@@ -201,7 +201,6 @@ int persist_load_file() {
     goto rerr;
   }
 
-  buf[OT_DUMP_IDENTI_LEN] = '\0';
   if (memcmp(buf, OT_DUMP_IDENTI, OT_DUMP_IDENTI_LEN) != 0) {
     LOG_ERR("%s\n", strerror(errno));
     goto rerr;
