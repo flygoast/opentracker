@@ -76,6 +76,9 @@ static int persist_add_peer(ot_hash *hash, ot_peerlist *peer_list, ot_peer *peer
   ot_torrent *torrent;
   ot_peer    *peer_dest;
 
+  /* eliminate compiler warnings */
+  (void)peer_list;
+
   ot_vector  *torrents_list = mutex_bucket_lock_by_hash(*hash);
 
   if( !accesslist_hashisvalid( hash ) ) {
@@ -137,7 +140,6 @@ static int persist_load_peers(FILE *fp, ot_hash *hash, ot_peerlist *peer_list) {
   ot_peer  peer;
 #ifdef _DEBUG_PERSIST
   struct in_addr myaddr;
-  unsigned int n;
   char str[40];
 #endif /* _DEBUG_PERSIST */
 
