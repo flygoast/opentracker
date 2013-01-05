@@ -400,8 +400,8 @@ static ssize_t http_handle_announce( const int64 sock, struct ot_workstruct *ws,
     else
       OT_SETIP( &ws->peer, cookie->ip );
   } else
-    OT_SETIP( &ws->peer, cookie->ip );
 #endif
+  OT_SETIP( &ws->peer, cookie->ip );
 
   ws->peer_id = NULL;
   ws->hash = NULL;
