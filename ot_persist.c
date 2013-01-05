@@ -36,11 +36,15 @@
 #include "ot_accesslist.h"
 #include "ot_persist.h"
 
-#ifdef _DEBUG 
+#ifdef _DEBUG
+#define _DEBUG_PERSIST
+#endif /* _DEBUG */
+
+#ifdef _DEBUG_PERSIST
 #define LOG_ERR( ... ) fprintf( stderr, __VA_ARGS__ )
 #else
 #define LOG_ERR( ... )
-#endif /* NO_PERSIST_LOGGING */
+#endif /* _DEBUG_PERSIST */
 
 #define PERSIST_SLEEP_INTERVAL      1000000     /* macroseconds */
 
@@ -99,7 +103,8 @@ static int persist_add_peer(ot_hash *hash, ot_peerlist *peer_list, ot_peer *peer
     delta_torrentcount = 1;
   }
 
-  torrent->peer_list->base = peer_list->base;
+  /* Ignore torrent base in odb file, just use current clock. */
+  torrent->peer_list->base = g_now_minutes;
 
   /* Check for peer in torrent */
   peer_dest = vector_find_or_insert_peer( &(torrent->peer_list->peers), peer, &exactmatch );
@@ -116,7 +121,7 @@ static int persist_add_peer(ot_hash *hash, ot_peerlist *peer_list, ot_peer *peer
     if( OT_PEERFLAG(peer) & PEER_FLAG_SEEDING )
       torrent->peer_list->seed_count++;
   } else {
-    LOG_ERR("You should get here!\n");
+    LOG_ERR("Repeat peer in a same torrent\n");
     assert(0);
   }
 
@@ -130,11 +135,11 @@ static int persist_load_peers(FILE *fp, ot_hash *hash, ot_peerlist *peer_list) {
   unsigned int count;
   unsigned int i;
   ot_peer  peer;
-#ifdef _DEBUG
+#ifdef _DEBUG_PERSIST
   struct in_addr myaddr;
   unsigned int n;
   char str[40];
-#endif /* _DEBUG */
+#endif /* _DEBUG_PERSIST */
 
   if (fread(&count, sizeof(unsigned int), 1, fp) == 0) goto rerr;
   LOG_ERR("Peer count: %d\n", count);
@@ -142,15 +147,15 @@ static int persist_load_peers(FILE *fp, ot_hash *hash, ot_peerlist *peer_list) {
 
   for (i = 0; i < count; ++i) {
     if (fread(&peer, sizeof(ot_peer), 1, fp) != 1) goto rerr;
-#ifdef _DEBUG
-    n = *(unsigned int *)&peer; 
-    myaddr.s_addr = htonl(n);
+#ifdef _DEBUG_PERSIST
+    /* ot_peer's ip and port is big endian. */
+    myaddr.s_addr = *(unsigned int *)&peer; 
     if (!inet_ntop(AF_INET, &myaddr, str, sizeof(str))) {
       LOG_ERR("inet_ntop failed");
       assert(0);
     }
-    LOG_ERR("%s:%d\n", str, *(unsigned short *)((uint8_t*)(&peer) + (OT_IP_SIZE)));
-#endif /* _DEBUG */
+    LOG_ERR("%s:%d\n", str, ntohs(*(unsigned short *)((uint8_t*)(&peer) + (OT_IP_SIZE))));
+#endif /* _DEBUG_PERSIST */
     if (persist_add_peer(hash, peer_list, &peer) < 0) {
       LOG_ERR("persist_add_peer failed\n");
       return -1;
@@ -163,7 +168,7 @@ rerr:
   return -1;
 }
 
-#ifdef _DEBUG
+#ifdef _DEBUG_PERSIST
 static int urlencode(const char *src, int len, char *ret, int size) {
   int i;
   int j = 0;
@@ -195,25 +200,25 @@ static int urlencode(const char *src, int len, char *ret, int size) {
 
   return j;
 }
-#endif /* _DEBUG */
+#endif /* _DEBUG_PERSIST */
 
 static int persist_load_torrent(FILE *fp) {
   ot_hash       hash;
   ot_peerlist   peer_list;
-#ifdef _DEBUG
+#ifdef _DEBUG_PERSIST
   char          log_buf[512];
-#endif /* _DEBUG */
+#endif /* _DEBUG_PERSIST */
 
   /* load torrent hash */
   if (fread(&hash, sizeof(ot_hash), 1, fp) != 1) goto rerr;
 
-#ifdef _DEBUG
+#ifdef _DEBUG_PERSIST
   if (urlencode((const char *)&hash, sizeof(ot_hash), log_buf, 512) <= 0) {
     LOG_ERR("urlencode failed\n");
     assert(0);
   }
   LOG_ERR("%s\n", log_buf);
-#endif /* _DEBUG */
+#endif /* _DEBUG_PERSIST */
 
   /*
    * load peer_list data:
@@ -244,9 +249,9 @@ int persist_load_file() {
   FILE     *fp;
   uint8_t   buf[1024];
   int       version;
-#ifdef _DEBUG
+#ifdef _DEBUG_PERSIST
   int       torrent_cnt = 0;
-#endif /* _DEBUG */
+#endif /* _DEBUG_PERSIST */
 
   if (!g_persistfile) {
     g_persistfile = strdup("opentracker.odb");
@@ -285,12 +290,14 @@ int persist_load_file() {
       break;
     }
     if (persist_load_torrent(fp) < 0) goto rerr;
-#ifdef _DEBUG
+#ifdef _DEBUG_PERSIST
     ++torrent_cnt;
-#endif /* _DEBUG */
+#endif /* _DEBUG_PERSIST */
   }
 
+#ifdef _DEBUG_PERSIST
   LOG_ERR("Load ODB file success: torrent count: %d\n", torrent_cnt);
+#endif /* _DEBUG_PERSIST */
   fclose(fp);
   return 0;
 
@@ -347,12 +354,13 @@ static int persist_dump_peers(ot_peerlist *peer_list, FILE *fp ) {
     size_t  peer_count = bucket_list[bucket].size;
 
     while( peer_count-- ) {
-      if (fwrite(peers, sizeof(ot_peer), 1, fp) == 0) goto werr;
+      if (fwrite(peers++, sizeof(ot_peer), 1, fp) == 0) goto werr;
     }
   }
   return 0;
 
 werr:
+  LOG_ERR("%s: persist dump peers failed\n", __FUNCTION__);
   return -1;
 }
 
@@ -389,6 +397,7 @@ static int persist_dump_torrent(ot_torrent* torrent, FILE *fp ) {
   return 0;
 
 werr:
+  LOG_ERR("%s: persist dump torrent failed\n", __FUNCTION__);
   return -1;
 }
 
@@ -415,8 +424,10 @@ static int persist_dump_make() {
     ot_torrent *torrents = (ot_torrent*)(torrents_list->data);
 
     for( j=0; j < torrents_list->size; ++j )
-      if( persist_dump_torrent( torrents + j, fp ) < 0 )
+      if( persist_dump_torrent( torrents + j, fp ) < 0 ) {
+        mutex_bucket_unlock( bucket, 0 );
         goto werr;
+      }
 
     mutex_bucket_unlock( bucket, 0 );
     if( !g_opentracker_running ) goto werr;
@@ -447,6 +458,7 @@ static int persist_dump_make() {
   return 0;
 
 werr:
+  LOG_ERR("%s: persist dump odb file:%s failed\n", __FUNCTION__, tmpfile);
   fclose(fp);
   unlink(tmpfile);
   return -1;
