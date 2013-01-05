@@ -55,6 +55,11 @@
 #      appear anywhere on your tracker.
 #
 # access.stats_path stats
+#
+# access.proxy 127.0.0.1
+#
+#      If you want ip from a proxy, set your proxy ip address here.
+
 
 # III) Live sync uses udp multicast packets to keep a cluster of opentrackers
 #      synchronized. This option tells opentracker which port to listen for
