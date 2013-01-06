@@ -1,9 +1,11 @@
-h1. OPENTRACKER ODB File Format
+OPENTRACKER ODB File Format
+===========================
 
 `opentracker` *.odb file is a binary representation of the in-memory store. 
 This binary file is sufficient to completely restore `opentracker` state.
 
-h2. High Level Algorithm to parse ODB
+High Level Algorithm to parse ODB
+=================================
 
 At a high level, the ODB file has the following structure
 <pre><code>
