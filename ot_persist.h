@@ -11,6 +11,10 @@
 
 #ifdef WANT_PERSISTENCE
 
+#ifdef WANT_V6
+#error "Persist don't surport IPV6"
+#endif
+
 extern char *g_persistfile;
 
 typedef enum {
