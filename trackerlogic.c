@@ -443,6 +443,10 @@ void trackerlogic_deinit( void ) {
   int bucket, delta_torrentcount = 0;
   size_t j;
 
+#ifdef WANT_PERSISTENCE
+  persist_make();
+#endif /* WANT_PERSISTENCE */
+
   /* Free all torrents... */
   for(bucket=0; bucket<OT_BUCKET_COUNT; ++bucket ) {
     ot_vector *torrents_list = mutex_bucket_lock( bucket );

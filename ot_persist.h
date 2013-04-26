@@ -24,6 +24,7 @@ typedef enum {
 
 void persist_init();
 void persist_deinit();
+void persist_make();
 int persist_load_file();
 void persist_change(struct ot_workstruct *ws);
 int persist_set_mode(char *value);
@@ -33,6 +34,7 @@ void persist_append_save_param(time_t seconds, int changes);
 
 #define persist_init()
 #define persist_deinit()
+#define persist_make()
 
 #endif /* WANT_PERSISTENCE */
 

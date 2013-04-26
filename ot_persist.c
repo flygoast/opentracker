@@ -488,6 +488,7 @@ static void * persist_worker( void * args ) {
         dump_saveparam_t *sp = saveparams + i;
         if (dump_dirty >= sp->changes && g_now_seconds - dump_lastsave > sp->seconds) {
           persist_dump_make();
+          break;
         }
       }
       if( !g_opentracker_running ) return NULL;
@@ -495,6 +496,12 @@ static void * persist_worker( void * args ) {
     } else {
       return NULL;
     }
+  }
+}
+
+void persist_make() {
+  if (g_persistmode == PMODE_DUMP) {
+    persist_dump_make();
   }
 }
 
