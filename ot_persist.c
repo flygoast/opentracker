@@ -415,7 +415,10 @@ static int persist_dump_make() {
   LOG_ERR("Start write odb file:%s\n", tmpfile);
 
   fp = fopen(tmpfile, "w");
-  if (!fp) return -1;
+  if (!fp) {
+    LOG_ERR("%s: fopen odb file:%s failed: %s\n", __FUNCTION__, tmpfile, strerror(errno));
+    return -1;
+  }
 
   /* write identifier and version */
   if (fwrite(OT_DUMP_IDENTI_VERSION, OT_DUMP_IDENTI_VERSION_LEN, 1, fp) == 0) goto werr;
@@ -432,7 +435,6 @@ static int persist_dump_make() {
       }
 
     mutex_bucket_unlock( bucket, 0 );
-    if( !g_opentracker_running ) goto werr;
   }
 
   /* EOF opcode */
@@ -460,7 +462,7 @@ static int persist_dump_make() {
   return 0;
 
 werr:
-  LOG_ERR("%s: persist dump odb file:%s failed\n", __FUNCTION__, tmpfile);
+  LOG_ERR("%s: persist dump odb file:%s failed: %s\n", __FUNCTION__, tmpfile, strerror(errno));
   fclose(fp);
   unlink(tmpfile);
   return -1;
@@ -500,7 +502,7 @@ static void * persist_worker( void * args ) {
 }
 
 void persist_make() {
-  if (g_persistmode == PMODE_DUMP) {
+  if (g_persistmode == PMODE_DUMP && dump_dirty != 0) {
     persist_dump_make();
   }
 }

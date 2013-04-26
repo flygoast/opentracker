@@ -55,9 +55,9 @@ static void panic( const char *routine ) {
 }
 
 static void signal_handler( int s ) {
-  if( s == SIGINT ) {
+  if( s == SIGINT || s == SIGTERM ) {
     /* Any new interrupt signal quits the application */
-    signal( SIGINT, SIG_DFL);
+    signal( s, SIG_DFL);
 
     /* Tell all other threads to not acquire any new lock on a bucket
        but cancel their operations and return */
@@ -83,6 +83,7 @@ static void defaul_signal_handlers( void ) {
   sigaddset (&signal_mask, SIGPIPE);
   sigaddset (&signal_mask, SIGHUP);
   sigaddset (&signal_mask, SIGINT);
+  sigaddset (&signal_mask, SIGTERM);
   sigaddset (&signal_mask, SIGALRM);
   pthread_sigmask (SIG_BLOCK, &signal_mask, NULL);
 }
@@ -95,10 +96,11 @@ static void install_signal_handlers( void ) {
   sa.sa_handler = signal_handler;
   sigemptyset(&sa.sa_mask);
   sa.sa_flags = SA_RESTART;
-  if ((sigaction(SIGINT, &sa, NULL) == -1) || (sigaction(SIGALRM, &sa, NULL) == -1) )
+  if ((sigaction(SIGINT, &sa, NULL) == -1) || (sigaction(SIGTERM, &sa, NULL) == -1) || (sigaction(SIGALRM, &sa, NULL) == -1) )
     panic( "install_signal_handlers" );
 
   sigaddset (&signal_mask, SIGINT);
+  sigaddset (&signal_mask, SIGTERM);
   sigaddset (&signal_mask, SIGALRM);
   pthread_sigmask (SIG_UNBLOCK, &signal_mask, NULL);
 }
