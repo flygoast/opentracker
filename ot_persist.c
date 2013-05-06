@@ -36,6 +36,8 @@
 #include "ot_accesslist.h"
 #include "ot_persist.h"
 
+#ifdef WANT_PERSISTENCE
+
 #ifdef _DEBUG
 #define _DEBUG_PERSIST
 #endif /* _DEBUG */
@@ -519,5 +521,7 @@ void persist_deinit( ) {
   if (saveparams) free(saveparams);
   if (g_persistfile) free(g_persistfile);
 }
+
+#endif
 
 const char *g_version_persist_c = "$Source: ot_persist.c Added by FengGu <flygoast@126.com>,v $: $Revision: 0.01 $\n";
