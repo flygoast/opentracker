@@ -376,6 +376,8 @@ static int scan_ip6_port( const char *src, ot_ip6 ip, uint16 *port ) {
   return off+s-src;
 }
 
+#ifdef WANT_PERSISTENCE
+
 static int scan_save_params( const char *src, int *seconds, int *changes) {
   const char *s = src;
   int off = 0;
@@ -390,6 +392,8 @@ static int scan_save_params( const char *src, int *seconds, int *changes) {
   s += off;
   return off+s-src;
 }
+
+#endif
 
 int parse_configfile( char * config_filename ) {
   FILE *  accesslist_filehandle;
