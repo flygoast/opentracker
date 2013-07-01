@@ -155,10 +155,15 @@ void trackerlogic_init( );
 void trackerlogic_deinit( void );
 void exerr( char * message );
 
+int urlencode(const char *src, int len, char *ret, int size);
+
 /* add_peer_to_torrent does only release the torrent bucket if from_sync is set,
    otherwise it is released in return_peers_for_torrent */
 size_t  add_peer_to_torrent_and_return_peers( PROTO_FLAG proto, struct ot_workstruct *ws, size_t amount );
 size_t  remove_peer_from_torrent( PROTO_FLAG proto, struct ot_workstruct *ws );
+#ifdef WANT_HTTPHUMAN
+size_t  return_tcp_humanscrape_for_torrent( struct ot_workstruct *ws, int amount );
+#endif
 size_t  return_tcp_scrape_for_torrent( ot_hash *hash, int amount, char *reply );
 size_t  return_udp_scrape_for_torrent( ot_hash hash, char *reply );
 void    add_torrent_from_saved_state( ot_hash hash, ot_time base, size_t down_count );

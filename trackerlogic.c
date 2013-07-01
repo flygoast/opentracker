@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <assert.h>
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <errno.h>
@@ -28,6 +29,36 @@
 #include "ot_fullscrape.h"
 #include "ot_livesync.h"
 #include "ot_persist.h"
+
+int urlencode(const char *src, int len, char *ret, int size) {
+  int i;
+  int j = 0;
+  char c;
+
+  for (i = 0; i < len && j < size; i++) {
+    c = src[i];
+    if ((c >= 'A') && (c <= 'Z')) {
+      ret[j++] = c;
+    } else if ((c >='a') && (c <= 'z')) {
+      ret[j++] = c;
+    } else if ((c >='0') && (c <= '9')) {
+      ret[j++] = c;
+    } else if (c == ' ') {
+      ret[j++] = '+';
+    } else {
+      if (j + 3 < size) {
+        sprintf(ret + j, "%%%02X", (unsigned char)c);
+        j += 3;
+      } else {
+        return 0;
+      }
+    }
+  }
+
+  ret[j] = '\0';
+
+  return j;
+}
 
 /* Forward declaration */
 size_t return_peers_for_torrent( ot_torrent *torrent, size_t amount, char *reply, PROTO_FLAG proto );
@@ -322,6 +353,214 @@ size_t return_udp_scrape_for_torrent( ot_hash hash, char *reply ) {
   mutex_bucket_unlock_by_hash( hash, delta_torrentcount );
   return 12;
 }
+
+#ifdef WANT_HTTPHUMAN
+static size_t return_human_peers_all( struct ot_workstruct *ws, ot_peerlist *peer_list, char *reply ) {
+  unsigned int bucket, num_buckets = 1;
+  ot_vector   *bucket_list = &peer_list->peers;
+  char        *r = reply;
+  char        *end = ws->outbuf + G_OUTBUF_SIZE; 
+  struct       in_addr myaddr;
+  char         str[40];
+  int          port;
+
+  if( OT_PEERLIST_HASBUCKETS(peer_list) ) {
+    num_buckets = bucket_list->size;
+    bucket_list = (ot_vector *)bucket_list->data;
+  }
+
+  for( bucket = 0; bucket<num_buckets; ++bucket ) {
+    ot_peer * peers = (ot_peer*)bucket_list[bucket].data;
+    size_t    peer_count = bucket_list[bucket].size;
+    while( peer_count-- ) {
+      /* ot_peer's ip and port is big endian. */
+      myaddr.s_addr = *(unsigned int *)peers; 
+      if (!inet_ntop(AF_INET, &myaddr, str, sizeof(str))) {
+        assert(0);
+      }
+      port = ntohs(*(unsigned short *)((uint8_t*)peers + (OT_IP_SIZE)));
+      peers++;
+      if( OT_PEERFLAG(peers) & PEER_FLAG_SEEDING ) {
+        r += snprintf( r, end - r - 1, "SEEDING: %s:%d\n", str, port );
+      } else {
+        r += snprintf( r, end - r - 1, "NO SEEDING: %s:%d\n", str, port );
+      }
+
+      if (r >= end) {
+        r = end - 1;
+        goto out;
+      }
+    }
+  }
+
+out:
+
+  return r - reply;
+}
+
+static size_t return_human_peers_selection( struct ot_workstruct *ws, ot_peerlist *peer_list, size_t amount, char *reply ) {
+  unsigned int bucket_offset, bucket_index = 0, num_buckets = 1;
+  ot_vector   *bucket_list = &peer_list->peers;
+  unsigned int shifted_pc = peer_list->peer_count;
+  unsigned int shifted_step = 0;
+  unsigned int shift = 0;
+  char        *r = reply;
+  char        *end = ws->outbuf + G_OUTBUF_SIZE; 
+  struct       in_addr myaddr;
+  char         str[40];
+  int          port;
+ 
+  if( OT_PEERLIST_HASBUCKETS(peer_list) ) {
+    num_buckets = bucket_list->size;
+    bucket_list = (ot_vector *)bucket_list->data;
+  }
+
+  /* Make fixpoint arithmetic as exact as possible */
+#define MAXPRECBIT (1<<(8*sizeof(int)-3))
+  while( !(shifted_pc & MAXPRECBIT ) ) { shifted_pc <<= 1; shift++; }
+  shifted_step = shifted_pc/amount;
+#undef MAXPRECBIT
+
+  /* Initialize somewhere in the middle of peers so that
+   fixpoint's aliasing doesn't alway miss the same peers */
+  bucket_offset = random() % peer_list->peer_count;
+
+  while( amount-- ) {
+    ot_peer * peer;
+
+    /* This is the aliased, non shifted range, next value may fall into */
+    unsigned int diff = ( ( ( amount + 1 ) * shifted_step ) >> shift ) -
+                        ( (   amount       * shifted_step ) >> shift );
+    bucket_offset += 1 + random() % diff;
+
+    while( bucket_offset >= bucket_list[bucket_index].size ) {
+      bucket_offset -= bucket_list[bucket_index].size;
+      bucket_index = ( bucket_index + 1 ) % num_buckets;
+    }
+    peer = ((ot_peer*)bucket_list[bucket_index].data) + bucket_offset;
+
+    /* ot_peer's ip and port is big endian. */
+    myaddr.s_addr = *(unsigned int *)peer; 
+    if (!inet_ntop(AF_INET, &myaddr, str, sizeof(str))) {
+      assert(0);
+    }
+    port = ntohs(*(unsigned short *)((uint8_t*)peer + (OT_IP_SIZE)));
+    peer++;
+
+    if( OT_PEERFLAG(peer) & PEER_FLAG_SEEDING ) {
+      r += snprintf( r, end - r - 1, "SEEDING: %s:%d\n", str, port );
+    } else {
+      r += snprintf( r, end - r - 1, "NO SEEDING: %s:%d\n", str, port );
+    }
+    if (r >= end) {
+      r = end - 1;
+      goto out;
+    }
+  }
+
+out:
+
+  return r - reply;
+}
+
+size_t return_human_peers_for_torrent( struct ot_workstruct *ws, ot_torrent *torrent, size_t amount, char *reply ) {
+  ot_peerlist *peer_list = torrent->peer_list;
+  char        *r = reply;
+  char        *end = ws->outbuf + G_OUTBUF_SIZE; 
+  int          erval = OT_CLIENT_REQUEST_INTERVAL_RANDOM;
+
+  if( amount == 0 || amount > peer_list->peer_count )
+    amount = peer_list->peer_count;
+
+  r += snprintf( r, end - r - 1, "complete:%zd, downloaded: %zd, incomplete: %zd, interval: %i, min interval: %i, peers: %zd\n", 
+    peer_list->seed_count, peer_list->down_count, peer_list->peer_count-peer_list->seed_count, erval, erval/2, OT_PEER_COMPARE_SIZE*amount );
+  if (r >= end) {
+    r = end - 1;
+    goto out;
+  }
+
+  if( amount ) {
+    if( amount == peer_list->peer_count )
+      r += return_human_peers_all( ws, peer_list, r );
+    else
+      r += return_human_peers_selection( ws, peer_list, amount, r );
+  }
+
+out:
+
+  return r - reply;
+}
+
+/* Fetches human-readable scrape info for a specific torrent */
+size_t return_tcp_humanscrape_for_torrent( struct ot_workstruct *ws, int amount ) {
+  ot_hash     *hash = ws->hash;
+  char        *reply = ws->reply;
+  char        *end = ws->outbuf + G_OUTBUF_SIZE; 
+  char        *r = reply;
+  int          exactmatch, i;
+  char         buf[512];
+  int          delta_torrentcount = 0;
+  ot_vector   *torrents_list = mutex_bucket_lock_by_hash( *hash );
+  ot_torrent  *torrent = binary_search( hash, torrents_list->data, torrents_list->size, sizeof( ot_torrent ), OT_HASH_COMPARE_SIZE, &exactmatch );
+
+  if (amount == 0) {
+    r += snprintf( r, end - r - 1,  "human_readable scrape: all\n" );
+  } else {
+    r += snprintf( r, end - r - 1, "human_readable scrape: %d\n", amount );
+  }
+
+  if (r >= end) {
+    r = end - 1;
+    goto out;
+  }
+
+  if( exactmatch ) {
+    if( clean_single_torrent( torrent ) ) {
+      vector_remove_torrent( torrents_list, torrent );
+      delta_torrentcount = -1;
+    } else {
+      r += snprintf( r, end - r - 1, "info_hash hex: ");
+      if (r >= end) {
+        r = end - 1;
+        goto out;
+      }
+
+      for (i = 0; i < (int)sizeof(ot_hash); i++) {
+        r += snprintf( r, end - r - 1, "%02x", *((unsigned char *)hash + i) );
+        if (r >= end) {
+          r = end - 1;
+          goto out;
+        }
+      }
+
+      *r++ = '\n';
+      if (r >= end) {
+        r = end - 1;
+        goto out;
+      }
+
+      if (urlencode((const char *)hash, sizeof(ot_hash), buf, sizeof(buf)) < 0) {
+        assert(0);
+      }
+
+      r += snprintf( r, end - r - 1, "info_hash urlencode: %s\n", buf); 
+      if (r >= end) {
+        r = end - 1;
+        goto out;
+      }
+     
+      r += return_human_peers_for_torrent( ws, torrent, amount, r );
+    }
+  }
+
+out:
+
+  mutex_bucket_unlock_by_hash( *hash, delta_torrentcount );
+
+  *r++ = '\n';
+  return r - reply;
+}
+#endif
 
 /* Fetches scrape info for a specific torrent */
 size_t return_tcp_scrape_for_torrent( ot_hash *hash_list, int amount, char *reply ) {

@@ -309,6 +309,50 @@ static ssize_t http_handle_fullscrape( const int64 sock, struct ot_workstruct *w
 }
 #endif
 
+#ifdef WANT_HTTPHUMAN
+static ssize_t http_handle_human( const int64 sock, struct ot_workstruct *ws, char *read_ptr ) {
+  static const ot_keywords  keywords_human[] = { { "info_hash", 1 }, { "numwant", 2 }, { NULL, -3 } };
+  char                     *write_ptr;
+  ssize_t                   len;
+  int                       scanon = 1;
+  int                       numwant = 0;
+
+  /* This is to hack around stupid clients that send "human ?info_hash" */
+  if( read_ptr[-1] != '?' ) {
+    while( ( *read_ptr != '?' ) && ( *read_ptr != '\n' ) ) ++read_ptr;
+    if( *read_ptr == '\n' ) HTTPERROR_400_PARAM;
+    ++read_ptr;
+  }
+
+  ws->hash = NULL;
+  scanon = 1;
+
+  while( scanon ) {
+    switch( scan_find_keywords(keywords_human, &read_ptr, SCAN_SEARCHPATH_PARAM ) ) {
+    case -2: scanon = 0; break;   /* TERMINATOR */
+    case -1: HTTPERROR_400_PARAM; /* PARSE ERROR */
+    case -3: scan_urlencoded_skipvalue( &read_ptr ); break;
+    case 1: /* matched "info_hash" */
+      if( ws->hash ) HTTPERROR_400_DOUBLEHASH;
+      /* ignore this, when we have less than 20 bytes */
+      if( scan_urlencoded_query( &read_ptr, write_ptr = read_ptr, SCAN_SEARCHPATH_VALUE ) != 20 ) HTTPERROR_400_PARAM;
+        ws->hash = (ot_hash*)write_ptr;
+      break;
+    case 2: /* matched "numwant" */
+      len = scan_urlencoded_query( &read_ptr, write_ptr = read_ptr, SCAN_SEARCHPATH_VALUE );
+      if( ( len <= 0 ) || scan_fixed_int( write_ptr, len, &numwant ) ) HTTPERROR_400_PARAM;
+      if( numwant < 0 ) numwant = 50;
+      if( numwant > 200 ) numwant = 200;
+      break;
+    }
+  }
+
+  /* Enough for http header + whole scrape string */
+  ws->reply_size = return_tcp_humanscrape_for_torrent( ws, numwant );
+  return ws->reply_size;
+}
+#endif
+
 static ssize_t http_handle_scrape( const int64 sock, struct ot_workstruct *ws, char *read_ptr ) {
   static const ot_keywords keywords_scrape[] = { { "info_hash", 1 }, { NULL, -3 } };
 
@@ -595,6 +639,10 @@ ssize_t http_handle_request( const int64 sock, struct ot_workstruct *ws ) {
   /* All the rest is matched the standard way */
   else if( len == g_stats_path_len && !memcmp( write_ptr, g_stats_path, len ) )
     http_handle_stats( sock, ws, read_ptr );
+#ifdef WANT_HTTPHUMAN
+  else if( len == sizeof("human") - 1 && !memcmp( write_ptr, "human", sizeof("human") - 1 ))
+    http_handle_human( sock, ws, read_ptr );
+#endif
   else
     HTTPERROR_404;
 

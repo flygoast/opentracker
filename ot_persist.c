@@ -172,40 +172,6 @@ rerr:
   return -1;
 }
 
-#ifdef _DEBUG_PERSIST
-static int urlencode(const char *src, int len, char *ret, int size) {
-  int i;
-  int j = 0;
-  char c;
-
-  assert(src && ret && len && size);
-
-  for (i = 0; i < len && j < size; i++) {
-    c = src[i];
-    if ((c >= 'A') && (c <= 'Z')) {
-      ret[j++] = c;
-    } else if ((c >='a') && (c <= 'z')) {
-      ret[j++] = c;
-    } else if ((c >='0') && (c <= '9')) {
-      ret[j++] = c;
-    } else if (c == ' ') {
-      ret[j++] = '+';
-    } else {
-      if (j + 3 < size) {
-        sprintf(ret + j, "%%%02X", (unsigned char)c);
-        j += 3;
-      } else {
-        return 0;
-      }
-    }
-  }
-
-  ret[j] = '\0';
-
-  return j;
-}
-#endif /* _DEBUG_PERSIST */
-
 static int persist_load_torrent(FILE *fp) {
   ot_hash       hash;
   ot_peerlist   peer_list;
