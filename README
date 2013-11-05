@@ -1,3 +1,15 @@
+# About This Fork
+==================
+
+## Added Feature
+
+* live sync through unicast
+* persistent storage on disk
+
+
+# Original README
+==================
+
 This is opentracker. An open bittorrent tracker.
 
 You need libowfat (http://www.fefe.de/libowfat/).
