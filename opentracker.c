@@ -297,7 +297,7 @@ static void * server_mainloop( void * args ) {
   return 0;
 }
 
-static int64_t ot_try_bind( ot_ip6 ip, uint16_t port, PROTO_FLAG proto ) {
+static int64_t ot_try_bind( ot_ip6 ip, uint16_t port, int backlog, PROTO_FLAG proto ) {
   int64 sock = proto == FLAG_TCP ? socket_tcp6( ) : socket_udp6( );
 
 #ifndef WANT_V6
@@ -324,7 +324,7 @@ static int64_t ot_try_bind( ot_ip6 ip, uint16_t port, PROTO_FLAG proto ) {
   if( socket_bind6_reuse( sock, ip, port, 0 ) == -1 )
     panic( "socket_bind6_reuse" );
 
-  if( ( proto == FLAG_TCP ) && ( socket_listen( sock, SOMAXCONN) == -1 ) )
+  if( ( proto == FLAG_TCP ) && ( socket_listen( sock, (backlog == 0) ? SOMAXCONN : backlog ) == -1 ) )
     panic( "socket_listen" );
 
   if( !io_fd( sock ) )
@@ -372,7 +372,34 @@ static int scan_ip6_port( const char *src, ot_ip6 ip, uint16 *port ) {
     if( *(s++) != ':' ) return 0;
   }
   if( !(off = scan_ushort (s, port ) ) )
-     return 0;
+    return 0;
+  return off+s-src;
+}
+
+static int scan_ip6_port_backlog( const char *src, ot_ip6 ip, uint16 *port, int *backlog ) {
+  const char *s = src;
+  int off, bracket = 0;
+  while( isspace(*s) ) ++s;
+  if( *s == '[' ) ++s, ++bracket; /* for v6 style notation */
+  if( !(off = scan_ip6( s, ip ) ) )
+    return 0;
+  s += off;
+  if( bracket && *s == ']' ) ++s;
+  if( *s == 0 || isspace(*s)) return s-src;
+  if( !ip6_isv4mapped(ip)){
+    if( *s != ':' && *s != '.' ) return 0;
+    if( !bracket && *(s) == ':' ) return 0;
+    s++;
+  } else {
+    if( *(s++) != ':' ) return 0;
+  }
+  if( !(off = scan_ushort (s, port ) ) )
+    return 0;
+  s += off;
+  if( *s == 0 || isspace(*s)) return s-src;
+  if( *(s++) != ':' ) return 0;
+  if( !(off = scan_int( s, backlog) ) )
+    return 0;
   return off+s-src;
 }
 
@@ -430,18 +457,21 @@ int parse_configfile( char * config_filename ) {
       set_config_option( &g_serveruser, p+13 );
     } else if(!byte_diff(p,14,"listen.tcp_udp" ) && isspace(p[14])) {
       uint16_t tmpport = 6969;
-      if( !scan_ip6_port( p+15, tmpip, &tmpport )) goto parse_error;
-      ot_try_bind( tmpip, tmpport, FLAG_TCP ); ++bound;
-      ot_try_bind( tmpip, tmpport, FLAG_UDP ); ++bound;
+      int tmpbacklog = 0;
+      if( !scan_ip6_port_backlog( p+15, tmpip, &tmpport, &tmpbacklog )) goto parse_error;
+      ot_try_bind( tmpip, tmpport, tmpbacklog, FLAG_TCP ); ++bound;
+      ot_try_bind( tmpip, tmpport, tmpbacklog, FLAG_UDP ); ++bound;
     } else if(!byte_diff(p,10,"listen.tcp" ) && isspace(p[10])) {
       uint16_t tmpport = 6969;
-      if( !scan_ip6_port( p+11, tmpip, &tmpport )) goto parse_error;
-      ot_try_bind( tmpip, tmpport, FLAG_TCP );
+      int tmpbacklog = 0;
+      if( !scan_ip6_port_backlog( p+11, tmpip, &tmpport, &tmpbacklog )) goto parse_error;
+      ot_try_bind( tmpip, tmpport, tmpbacklog, FLAG_TCP );
       ++bound;
     } else if(!byte_diff(p, 10, "listen.udp" ) && isspace(p[10])) {
       uint16_t tmpport = 6969;
-      if( !scan_ip6_port( p+11, tmpip, &tmpport )) goto parse_error;
-      ot_try_bind( tmpip, tmpport, FLAG_UDP );
+      int tmpbacklog = 0;
+      if( !scan_ip6_port_backlog( p+11, tmpip, &tmpport, &tmpbacklog )) goto parse_error;
+      ot_try_bind( tmpip, tmpport, tmpbacklog, FLAG_UDP );
       ++bound;
     } else if(!byte_diff(p,18,"listen.udp.workers" ) && isspace(p[18])) {
       char *value = p + 18;
@@ -631,10 +661,10 @@ int main( int argc, char **argv ) {
 #endif
       case 'p':
         if( !scan_ushort( optarg, &tmpport)) { usage( argv[0] ); exit( 1 ); }
-        ot_try_bind( serverip, tmpport, FLAG_TCP ); bound++; break;
+        ot_try_bind( serverip, tmpport, 0, FLAG_TCP ); bound++; break;
       case 'P':
         if( !scan_ushort( optarg, &tmpport)) { usage( argv[0] ); exit( 1 ); }
-        ot_try_bind( serverip, tmpport, FLAG_UDP ); bound++; break;
+        ot_try_bind( serverip, tmpport, 0, FLAG_UDP ); bound++; break;
 #ifdef WANT_SYNC_LIVE
       case 's':
         if( !scan_ushort( optarg, &tmpport)) { usage( argv[0] ); exit( 1 ); }
@@ -667,8 +697,8 @@ int main( int argc, char **argv ) {
 
   /* Bind to our default tcp/udp ports */
   if( !bound) {
-    ot_try_bind( serverip, 6969, FLAG_TCP );
-    ot_try_bind( serverip, 6969, FLAG_UDP );
+    ot_try_bind( serverip, 6969, 0, FLAG_TCP );
+    ot_try_bind( serverip, 6969, 0, FLAG_UDP );
   }
 
   if( !g_udp_workers )
