@@ -19,11 +19,13 @@
 # listen.tcp_udp 0.0.0.0
 # listen.tcp_udp 192.168.0.1:80
 # listen.tcp_udp 10.0.0.5:6969
+# listen.tcp_udp 10.0.0.5:6969:511
 #
 #      To only listen on tcp or udp family ports, list them this way:
 #
 # listen.tcp 0.0.0.0
 # listen.udp 192.168.0.1:6969
+# listen.udp 192.168.0.1:6969:511
 #
 #      Note, that using 0.0.0.0 for udp sockets may yield surprising results.
 #      An answer packet sent on that socket will not necessarily have the
