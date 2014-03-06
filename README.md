@@ -1,6 +1,8 @@
 # About This Fork
 ==================
 
+[![Build Status](https://travis-ci.org/flygoast/opentracker.png?branch=master)](https://travis-ci.org/flygoast/opentracker)
+
 ## Added Feature
 
 * live sync through unicast
