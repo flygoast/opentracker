@@ -1,0 +1,9 @@
+language: c
+
+env:
+
+scrit: sh travis/run.sh
+
+notifications:
+  email:
+    -flygoast@126.com
