@@ -2,7 +2,7 @@ language: c
 
 env:
 
-scrit: sh travis/run.sh
+script: sh travis/run.sh
 
 notifications:
   email:
