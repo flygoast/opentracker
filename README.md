@@ -7,6 +7,7 @@
 
 * live sync through unicast
 * persistent storage on disk
+* configurable backlog argument for listen(2)
 
 
 # Original README
