@@ -7,6 +7,7 @@
 
 * live sync through unicast
 * persistent storage on disk
+* human-readable http debug interface
 * configurable backlog argument for listen(2)
 
 
